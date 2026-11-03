@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Emiringle Admin</title>
+<style>body{font-family:system-ui;margin:0;display:flex;height:100vh}#l{width:320px;overflow:auto;border-right:1px solid #8885}
+#v{flex:1;overflow:auto;padding:16px}.i{padding:10px;border-bottom:1px solid #8883;cursor:pointer}.i:hover{background:#8881}
+.f{color:#e33;font-weight:600}.m{margin:6px 0}.m img{max-width:260px;display:block;border-radius:6px}.t{opacity:.5;font-size:12px}button{margin:2px}</style></head><body>
+<div id="l"></div><div id="v">Select a chat.</div>
+<script>
+let chats=[];
+const ft=t=>new Date(t).toLocaleString();
+async function load(){chats=await (await fetch('/admin/api/chats')).json();
+ const l=document.getElementById('l');l.innerHTML='';
+ chats.forEach(c=>{const d=document.createElement('div');d.className='i';
+  d.innerHTML='<div class="'+(c.flagged?'f':'')+'">'+(c.flagged?'🚩 ':'')+c.users.map(u=>u.nick.replace(/</g,'&lt;')).join(' ↔ ')+'</div><div class="t">'+ft(c.started)+' · '+c.messages.length+' msgs</div>';
+  d.onclick=()=>show(c);l.appendChild(d)})}
+function show(c){const v=document.getElementById('v');v.innerHTML='';
+ const h=document.createElement('div');
+ c.users.forEach(u=>{const b=document.createElement('button');b.textContent='Ban '+u.nick+' ('+u.ip+')';
+  b.onclick=async()=>{await fetch('/admin/api/ban/'+encodeURIComponent(u.ip),{method:'POST'});b.textContent='Banned'};h.appendChild(b)});
+ v.appendChild(h);
+ c.messages.forEach(m=>{const d=document.createElement('div');d.className='m';
+  const t=document.createElement('span');t.className='t';t.textContent=ft(m.t)+' ';d.appendChild(t);
+  const n=document.createElement('b');n.textContent=m.from+': ';d.appendChild(n);
+  if(m.media){const i=new Image();i.src='/admin/uploads/'+m.media;d.appendChild(i)}else d.appendChild(document.createTextNode(m.text));v.appendChild(d)})}
+load();setInterval(load,10000);
+</script></body></html>

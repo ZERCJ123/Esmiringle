@@ -1,0 +1,53 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Emiringle</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--card:#f3f3f6;--acc:#ff4b6e}
+@media(prefers-color-scheme:dark){:root{--bg:#15151a;--fg:#eee;--card:#23232b}}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);height:100vh;display:flex;flex-direction:column}
+.c{max-width:640px;width:100%;margin:auto;padding:16px}
+input[type=text]{width:100%;padding:12px;border-radius:10px;border:1px solid #8886;background:var(--card);color:var(--fg);margin:8px 0}
+button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-size:15px;cursor:pointer}
+button.g{background:var(--card);color:var(--fg)}
+#chat{display:none;flex:1;flex-direction:column;max-width:640px;width:100%;margin:0 auto;min-height:0}
+#log{flex:1;overflow-y:auto;padding:12px}
+.m{max-width:80%;padding:8px 12px;border-radius:14px;margin:4px 0;background:var(--card);word-wrap:break-word}
+.m.me{background:var(--acc);color:#fff;margin-left:auto}.sys{text-align:center;opacity:.6;font-size:13px;margin:8px}
+.m img{max-width:100%;border-radius:8px}.bar{display:flex;gap:6px;padding:8px}.bar input{flex:1;margin:0}
+.small{font-size:12px;opacity:.7}
+</style></head><body>
+<div class="c" id="home">
+ <h1>Emiringle</h1><p>Meet someone new. No account needed.</p>
+ <input type="text" id="nick" placeholder="Pick a nickname" maxlength="20">
+ <label><input type="checkbox" id="adult"> I am 18 or older</label>
+ <p class="small">Safety notice: conversations and shared images are logged and may be reviewed by moderators to keep the community safe. Don't share personal information. Illegal content is reported and users are banned.</p>
+ <button id="go">Start chatting</button> <p id="err" style="color:#e33"></p>
+</div>
+<div id="chat">
+ <div class="bar"><button class="g" id="next">Next</button><button class="g" id="block">Block</button><button class="g" id="report">Report</button></div>
+ <div id="log"></div>
+ <div class="bar"><button class="g" id="img">📷</button><input type="file" id="file" accept="image/*" hidden>
+  <input type="text" id="txt" placeholder="Type a message…" maxlength="2000"><button id="send">Send</button></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $=i=>document.getElementById(i),s=io(),log=$('log');
+const sys=t=>{const d=document.createElement('div');d.className='sys';d.textContent=t;log.appendChild(d);log.scrollTop=1e9};
+const add=(t,me,img)=>{const d=document.createElement('div');d.className='m'+(me?' me':'');
+ if(img){const i=new Image();i.src=img;d.appendChild(i)}else d.textContent=t;log.appendChild(d);log.scrollTop=1e9};
+$('go').onclick=()=>{ if(!$('adult').checked){$('err').textContent='You must be 18+ to continue.';return}
+ s.emit('join',{nick:$('nick').value,adult:true});$('home').style.display='none';$('chat').style.display='flex'};
+s.on('waiting',()=>{log.innerHTML='';sys('Looking for someone…')});
+s.on('matched',d=>{log.innerHTML='';sys('Connected with '+d.partner+'. Say hi! (chats are moderated)')});
+s.on('partner_left',()=>sys('Partner left. Press Next to find someone new.'));
+s.on('msg',d=>add(d.text,false));
+s.on('media',d=>add('',false,'data:'+d.mime+';base64,'+btoa(String.fromCharCode(...new Uint8Array(d.data)))));
+s.on('banned',()=>{document.body.innerHTML='<p style="padding:20px">You have been banned.</p>'});
+const send=()=>{const t=$('txt').value.trim();if(!t)return;s.emit('msg',t);add(t,true);$('txt').value=''};
+$('send').onclick=send;$('txt').onkeydown=e=>{if(e.key==='Enter')send()};
+$('next').onclick=()=>s.emit('next');
+$('block').onclick=()=>{s.emit('block');s.emit('next')};
+$('report').onclick=()=>{s.emit('report');sys('Reported. Thanks — a moderator will review this chat.')};
+$('img').onclick=()=>$('file').click();
+$('file').onchange=async e=>{const f=e.target.files[0];if(!f||f.size>5e6)return sys('Image too large (5MB max).');
+ const buf=await f.arrayBuffer();s.emit('media',{mime:f.type,data:buf});add('',true,URL.createObjectURL(f));e.target.value=''};
+</script></body></html>
